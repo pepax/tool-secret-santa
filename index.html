@@ -3,57 +3,90 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="Reusable starter template for browser-based tools." />
-    <title>Your Tool Name | Template</title>
+    <meta name="description" content="Secret Santa generator and private reveal flow." />
+    <title>Secret Santa</title>
     <link rel="stylesheet" href="style.css" />
   </head>
   <body>
-    <main class="page">
-      <section class="tool-card" aria-labelledby="tool-title">
-        <header class="tool-header">
-          <h1 id="tool-title">Tool Title</h1>
-          <p class="tool-subtitle">A minimal starter for browser-based utilities.</p>
+    <main class="app" aria-live="polite">
+      <section id="setup-screen" class="screen" aria-labelledby="setup-title">
+        <header class="screen-header">
+          <h1 id="setup-title">Secret Santa</h1>
+          <p class="subtitle">Add everyone, then start private reveals one person at a time.</p>
         </header>
 
-        <form id="tool-form" class="tool-form" novalidate>
-          <section class="panel input-panel" aria-label="Input section">
-            <h2>Input</h2>
-
-            <div class="field">
-              <label for="main-input">Main Input</label>
+        <div class="card">
+          <form id="add-form" class="name-form" autocomplete="off">
+            <label for="name-input" class="label">Participant name</label>
+            <div class="row">
               <input
-                id="main-input"
-                name="mainInput"
+                id="name-input"
+                class="input"
                 type="text"
-                placeholder="Type something..."
-                autocomplete="off"
+                placeholder="Enter a name"
+                maxlength="40"
+                required
               />
+              <button id="add-btn" class="btn btn-primary" type="submit">Add</button>
             </div>
+          </form>
 
-            <div class="field">
-              <label for="option-input">Optional Setting</label>
-              <input
-                id="option-input"
-                name="optionInput"
-                type="text"
-                placeholder="Optional value"
-                autocomplete="off"
-              />
+          <p id="setup-message" class="message" role="status"></p>
+
+          <h2 class="list-title">Participants</h2>
+          <ul id="participant-list" class="participant-list" aria-label="Participants"></ul>
+
+          <button id="start-btn" class="btn btn-accent btn-block" type="button">
+            Start Secret Santa
+          </button>
+        </div>
+      </section>
+
+      <section id="reveal-screen" class="screen hidden" aria-labelledby="reveal-title">
+        <header class="screen-header">
+          <h1 id="reveal-title">Private Reveal</h1>
+          <p id="turn-indicator" class="subtitle"></p>
+        </header>
+
+        <div class="card">
+          <p class="pass-text">Pass the device to the next person.</p>
+
+          <div id="ready-step" class="step">
+            <button id="reveal-btn" class="btn btn-accent btn-block" type="button">
+              Tap to reveal your name
+            </button>
+          </div>
+
+          <div id="confirm-step" class="step hidden">
+            <p class="confirm-text">Are you ready to reveal?</p>
+            <div class="split">
+              <button id="confirm-reveal-btn" class="btn btn-primary" type="button">Yes, reveal</button>
+              <button id="cancel-reveal-btn" class="btn btn-ghost" type="button">Not yet</button>
             </div>
-          </section>
+          </div>
 
-          <section class="panel output-panel" aria-label="Output section">
-            <h2>Output</h2>
-            <label for="result-output">Result</label>
-            <output id="result-output" for="main-input option-input">Result will appear here.</output>
-          </section>
+          <div id="result-step" class="step hidden">
+            <p class="label strong">You are gifting:</p>
+            <p id="assigned-name" class="assigned-name" aria-live="assertive"></p>
+            <button id="next-btn" class="btn btn-primary btn-block" type="button">
+              Hide and pass to next person
+            </button>
+          </div>
+        </div>
+      </section>
 
-          <section class="actions" aria-label="Action buttons">
-            <button type="button" id="calculate-btn" class="btn btn-primary">Calculate</button>
-            <button type="button" id="copy-btn" class="btn btn-secondary">Copy Result</button>
-            <button type="button" id="reset-btn" class="btn btn-secondary">Reset</button>
-          </section>
-        </form>
+      <section id="finished-screen" class="screen hidden" aria-labelledby="finished-title">
+        <header class="screen-header">
+          <h1 id="finished-title">Done 🎉</h1>
+          <p class="subtitle">All names have been assigned.</p>
+        </header>
+
+        <div class="card">
+          <p class="finished-text">Keep the assignments secret and have fun!</p>
+          <button id="reset-btn" class="btn btn-accent btn-block" type="button">
+            Start Over
+          </button>
+        </div>
       </section>
     </main>
 

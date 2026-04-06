@@ -1,154 +1,304 @@
-const STORAGE_KEY = "tool-template-state-v1";
+"use strict";
 
+/**
+ * Secret Santa app (in-memory only)
+ * - participants: string[]
+ * - assignments: Map<giver, receiver>
+ * - revealed: Set<giver>
+ * - currentIndex: number
+ * - revealState: "ready" | "confirm" | "revealed"
+ */
 const state = {
-  input: {
-    mainInput: "",
-    optionInput: "",
-  },
-  output: "",
+  participants: [],
+  assignments: new Map(),
+  revealed: new Set(),
+  currentIndex: 0,
+  revealState: "ready",
 };
 
 const ui = {
-  form: null,
-  mainInput: null,
-  optionInput: null,
-  resultOutput: null,
-  calculateBtn: null,
-  copyBtn: null,
-  resetBtn: null,
-  statusMessage: null,
+  screens: {
+    setup: document.getElementById("setup-screen"),
+    reveal: document.getElementById("reveal-screen"),
+    finished: document.getElementById("finished-screen"),
+  },
+  form: document.getElementById("add-form"),
+  nameInput: document.getElementById("name-input"),
+  addBtn: document.getElementById("add-btn"),
+  list: document.getElementById("participant-list"),
+  setupMessage: document.getElementById("setup-message"),
+  startBtn: document.getElementById("start-btn"),
+  turnIndicator: document.getElementById("turn-indicator"),
+  readyStep: document.getElementById("ready-step"),
+  confirmStep: document.getElementById("confirm-step"),
+  resultStep: document.getElementById("result-step"),
+  revealBtn: document.getElementById("reveal-btn"),
+  confirmRevealBtn: document.getElementById("confirm-reveal-btn"),
+  cancelRevealBtn: document.getElementById("cancel-reveal-btn"),
+  assignedName: document.getElementById("assigned-name"),
+  nextBtn: document.getElementById("next-btn"),
+  resetBtn: document.getElementById("reset-btn"),
 };
 
 function init() {
-  cacheElements();
-  createStatusMessage();
-  restoreState();
   bindEvents();
-  renderInputs();
-  renderOutput();
-}
-
-function cacheElements() {
-  ui.form = document.getElementById("tool-form");
-  ui.mainInput = document.getElementById("main-input");
-  ui.optionInput = document.getElementById("option-input");
-  ui.resultOutput = document.getElementById("result-output");
-  ui.calculateBtn = document.getElementById("calculate-btn");
-  ui.copyBtn = document.getElementById("copy-btn");
-  ui.resetBtn = document.getElementById("reset-btn");
-}
-
-function createStatusMessage() {
-  const message = document.createElement("p");
-  message.className = "status-message";
-  message.setAttribute("aria-live", "polite");
-  ui.form.appendChild(message);
-  ui.statusMessage = message;
+  renderSetup();
+  showScreen("setup");
 }
 
 function bindEvents() {
-  ui.mainInput.addEventListener("input", (event) => {
-    handleInputChange("mainInput", event.target.value);
+  ui.form.addEventListener("submit", (event) => {
+    event.preventDefault();
+    addParticipant(ui.nameInput.value);
   });
 
-  ui.optionInput.addEventListener("input", (event) => {
-    handleInputChange("optionInput", event.target.value);
+  ui.list.addEventListener("click", (event) => {
+    const button = event.target.closest("button[data-remove]");
+    if (!button) return;
+    removeParticipant(button.dataset.remove);
   });
 
-  ui.calculateBtn.addEventListener("click", () => {
-    compute();
-    renderOutput();
+  ui.startBtn.addEventListener("click", startSecretSanta);
+
+  ui.revealBtn.addEventListener("click", () => {
+    state.revealState = "confirm";
+    renderReveal();
   });
 
-  ui.copyBtn.addEventListener("click", copyToClipboard);
-
-  ui.resetBtn.addEventListener("click", () => {
-    reset();
-    renderInputs();
-    renderOutput();
+  ui.cancelRevealBtn.addEventListener("click", () => {
+    state.revealState = "ready";
+    renderReveal();
   });
+
+  ui.confirmRevealBtn.addEventListener("click", revealAssignment);
+  ui.nextBtn.addEventListener("click", hideAndAdvance);
+  ui.resetBtn.addEventListener("click", resetAll);
 }
 
-function handleInputChange(field, value) {
-  state.input[field] = value;
-  saveState();
-}
+/* ----------------------------- Setup Phase ----------------------------- */
 
-function compute() {
-  // Placeholder logic:
-  // Replace this with your own calculation/conversion/generation logic.
-  const main = state.input.mainInput.trim();
-  const option = state.input.optionInput.trim();
+function addParticipant(rawName) {
+  const name = normalizeName(rawName);
 
-  if (!main) {
-    state.output = "Enter a value first.";
-    setStatus("No input provided.", true);
-    saveState();
+  if (!name) {
+    setSetupMessage("Please enter a name.", true);
     return;
   }
 
-  state.output = option
-    ? `Main: ${main} | Option: ${option}`
-    : `Main: ${main}`;
+  if (hasDuplicateName(name)) {
+    setSetupMessage("That name is already in the list.", true);
+    return;
+  }
 
-  setStatus("Result updated.");
-  saveState();
+  state.participants.push(name);
+  ui.nameInput.value = "";
+  setSetupMessage("Name added.");
+  renderSetup();
+  ui.nameInput.focus();
 }
 
-function renderInputs() {
-  ui.mainInput.value = state.input.mainInput;
-  ui.optionInput.value = state.input.optionInput;
+function removeParticipant(name) {
+  state.participants = state.participants.filter((n) => n !== name);
+  setSetupMessage("Name removed.");
+  renderSetup();
 }
 
-function renderOutput() {
-  ui.resultOutput.textContent = state.output || "Result will appear here.";
+function renderSetup() {
+  ui.list.innerHTML = "";
+
+  if (state.participants.length === 0) {
+    const empty = document.createElement("li");
+    empty.className = "participant-item";
+    empty.innerHTML = `<span class="participant-name">No participants yet.</span>`;
+    ui.list.appendChild(empty);
+  } else {
+    const fragment = document.createDocumentFragment();
+
+    state.participants.forEach((name) => {
+      const item = document.createElement("li");
+      item.className = "participant-item";
+      item.innerHTML = `
+        <span class="participant-name">${escapeHtml(name)}</span>
+        <button class="btn btn-ghost" type="button" data-remove="${escapeHtmlAttr(name)}" aria-label="Remove ${escapeHtmlAttr(name)}">
+          Remove
+        </button>
+      `;
+      fragment.appendChild(item);
+    });
+
+    ui.list.appendChild(fragment);
+  }
+
+  ui.startBtn.disabled = state.participants.length < 2;
 }
 
-function reset() {
-  state.input.mainInput = "";
-  state.input.optionInput = "";
-  state.output = "";
-  localStorage.removeItem(STORAGE_KEY);
-  setStatus("Inputs and output reset.");
+/* -------------------------- Assignment Logic --------------------------- */
+/**
+ * Sattolo's algorithm:
+ * Produces a single-cycle permutation (a valid derangement for n >= 2).
+ * This avoids naive "shuffle-until-valid" retries.
+ */
+function buildDerangement(names) {
+  if (names.length < 2) {
+    throw new Error("Need at least 2 participants.");
+  }
+
+  const receivers = [...names];
+
+  for (let i = receivers.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * i); // 0..i-1
+    [receivers[i], receivers[j]] = [receivers[j], receivers[i]];
+  }
+
+  const assignments = new Map();
+  names.forEach((giver, index) => {
+    assignments.set(giver, receivers[index]);
+  });
+
+  if (!isValidAssignment(names, assignments)) {
+    throw new Error("Invalid assignment generated.");
+  }
+
+  return assignments;
 }
 
-async function copyToClipboard() {
-  if (!state.output) {
-    setStatus("Nothing to copy yet.", true);
+function isValidAssignment(names, assignments) {
+  if (assignments.size !== names.length) return false;
+
+  const assignedSet = new Set(assignments.values());
+  if (assignedSet.size !== names.length) return false;
+
+  for (const name of names) {
+    if (!assignments.has(name)) return false;
+    if (assignments.get(name) === name) return false;
+  }
+
+  return true;
+}
+
+/* ---------------------------- Reveal Phase ----------------------------- */
+
+function startSecretSanta() {
+  if (state.participants.length < 2) {
+    setSetupMessage("Add at least 2 participants to start.", true);
     return;
   }
 
   try {
-    await navigator.clipboard.writeText(state.output);
-    setStatus("Result copied to clipboard.");
+    state.assignments = buildDerangement(state.participants);
   } catch {
-    setStatus("Clipboard not available in this browser.", true);
-  }
-}
-
-function setStatus(message, isError = false) {
-  ui.statusMessage.textContent = message;
-  ui.statusMessage.classList.toggle("error", isError);
-}
-
-function saveState() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-}
-
-function restoreState() {
-  const raw = localStorage.getItem(STORAGE_KEY);
-  if (!raw) {
+    setSetupMessage("Could not generate assignments. Please try again.", true);
     return;
   }
 
-  try {
-    const parsed = JSON.parse(raw);
-    state.input.mainInput = parsed?.input?.mainInput ?? "";
-    state.input.optionInput = parsed?.input?.optionInput ?? "";
-    state.output = parsed?.output ?? "";
-  } catch {
-    localStorage.removeItem(STORAGE_KEY);
+  state.revealed = new Set();
+  state.currentIndex = 0;
+  state.revealState = "ready";
+  ui.assignedName.textContent = "";
+
+  renderReveal();
+  showScreen("reveal");
+}
+
+function renderReveal() {
+  if (state.currentIndex >= state.participants.length) {
+    showScreen("finished");
+    return;
   }
+
+  const turn = state.currentIndex + 1;
+  const total = state.participants.length;
+  const currentParticipant = state.participants[state.currentIndex];
+  ui.turnIndicator.textContent = `It's ${currentParticipant}'s turn (${turn} of ${total})`;
+
+  ui.readyStep.classList.toggle("hidden", state.revealState !== "ready");
+  ui.confirmStep.classList.toggle("hidden", state.revealState !== "confirm");
+  ui.resultStep.classList.toggle("hidden", state.revealState !== "revealed");
+}
+
+function revealAssignment() {
+  const giver = state.participants[state.currentIndex];
+  if (!giver || state.revealed.has(giver)) return;
+
+  state.revealState = "revealed";
+  renderReveal();
+
+  ui.assignedName.textContent = "Revealing…";
+  ui.confirmRevealBtn.disabled = true;
+
+  window.setTimeout(() => {
+    const receiver = state.assignments.get(giver);
+    ui.assignedName.textContent = receiver || "Unknown";
+    ui.confirmRevealBtn.disabled = false;
+  }, 700);
+}
+
+function hideAndAdvance() {
+  const giver = state.participants[state.currentIndex];
+  if (!giver) return;
+
+  state.revealed.add(giver);
+  ui.assignedName.textContent = "";
+  state.currentIndex += 1;
+  state.revealState = "ready";
+
+  if (state.currentIndex >= state.participants.length) {
+    showScreen("finished");
+    return;
+  }
+
+  renderReveal();
+}
+
+/* ------------------------------- Reset -------------------------------- */
+
+function resetAll() {
+  state.participants = [];
+  state.assignments = new Map();
+  state.revealed = new Set();
+  state.currentIndex = 0;
+  state.revealState = "ready";
+
+  ui.nameInput.value = "";
+  ui.assignedName.textContent = "";
+  setSetupMessage("");
+  renderSetup();
+  showScreen("setup");
+}
+
+/* ------------------------------ Helpers ------------------------------- */
+
+function showScreen(screenName) {
+  ui.screens.setup.classList.toggle("hidden", screenName !== "setup");
+  ui.screens.reveal.classList.toggle("hidden", screenName !== "reveal");
+  ui.screens.finished.classList.toggle("hidden", screenName !== "finished");
+}
+
+function setSetupMessage(message, isError = false) {
+  ui.setupMessage.textContent = message;
+  ui.setupMessage.classList.toggle("error", isError);
+}
+
+function normalizeName(value) {
+  return value.trim().replace(/\s+/g, " ");
+}
+
+function hasDuplicateName(name) {
+  const lowered = name.toLocaleLowerCase();
+  return state.participants.some((existing) => existing.toLocaleLowerCase() === lowered);
+}
+
+function escapeHtml(value) {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
+function escapeHtmlAttr(value) {
+  return escapeHtml(value);
 }
 
 document.addEventListener("DOMContentLoaded", init);
