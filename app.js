@@ -16,6 +16,12 @@ const state = {
   revealState: "ready",
 };
 
+const STORAGE_KEY = "secret-santa-store";
+const STORE_VERSION = 1;
+const DEFAULT_GROUP_ID = "default";
+
+let store = getDefaultStore();
+
 const ui = {
   screens: {
     setup: document.getElementById("setup-screen"),
@@ -44,9 +50,15 @@ const ui = {
 };
 
 function init() {
+  const loadResult = loadStore();
+  state.participants = [...getActiveGroupParticipants()];
   bindEvents();
   renderSetup();
   showScreen("setup");
+
+  if (loadResult.warningMessage) {
+    setSetupMessage(loadResult.warningMessage, true);
+  }
 }
 
 function bindEvents() {
@@ -96,6 +108,8 @@ function addParticipant(rawName) {
   }
 
   state.participants.push(name);
+  setActiveGroupParticipants(state.participants);
+  saveStore();
   ui.nameInput.value = "";
   setSetupMessage("Name added.");
   renderSetup();
@@ -104,6 +118,8 @@ function addParticipant(rawName) {
 
 function removeParticipant(name) {
   state.participants = state.participants.filter((n) => n !== name);
+  setActiveGroupParticipants(state.participants);
+  saveStore();
   setSetupMessage("Name removed.");
   renderSetup();
 }
@@ -282,6 +298,8 @@ function editParticipants() {
 
 function resetAll() {
   state.participants = [];
+  setActiveGroupParticipants(state.participants);
+  saveStore();
   resetRunState();
 
   ui.nameInput.value = "";
@@ -291,6 +309,126 @@ function resetAll() {
 }
 
 /* ------------------------------ Helpers ------------------------------- */
+
+function getDefaultStore() {
+  return {
+    version: STORE_VERSION,
+    groups: {
+      [DEFAULT_GROUP_ID]: {
+        id: DEFAULT_GROUP_ID,
+        name: "Default Group",
+        participants: [],
+      },
+    },
+    activeGroupId: DEFAULT_GROUP_ID,
+  };
+}
+
+function migrateStore(rawStore) {
+  const fallbackStore = getDefaultStore();
+
+  if (!rawStore || typeof rawStore !== "object") {
+    return fallbackStore;
+  }
+
+  const incomingVersion = Number(rawStore.version);
+  const rawGroups = rawStore.groups;
+  const groups = {};
+
+  if (rawGroups && typeof rawGroups === "object" && !Array.isArray(rawGroups)) {
+    Object.entries(rawGroups).forEach(([groupId, groupData]) => {
+      if (!groupData || typeof groupData !== "object") return;
+
+      const participants = Array.isArray(groupData.participants)
+        ? groupData.participants
+            .map((value) => (typeof value === "string" ? normalizeName(value) : ""))
+            .filter(Boolean)
+        : [];
+
+      groups[groupId] = {
+        id: typeof groupData.id === "string" && groupData.id ? groupData.id : groupId,
+        name:
+          typeof groupData.name === "string" && groupData.name
+            ? groupData.name
+            : "Group",
+        participants,
+      };
+    });
+  }
+
+  if (Object.keys(groups).length === 0 && Array.isArray(rawStore.participants)) {
+    groups[DEFAULT_GROUP_ID] = {
+      ...fallbackStore.groups[DEFAULT_GROUP_ID],
+      participants: rawStore.participants
+        .map((value) => (typeof value === "string" ? normalizeName(value) : ""))
+        .filter(Boolean),
+    };
+  }
+
+  if (Object.keys(groups).length === 0) {
+    groups[DEFAULT_GROUP_ID] = { ...fallbackStore.groups[DEFAULT_GROUP_ID] };
+  }
+
+  const activeGroupId =
+    typeof rawStore.activeGroupId === "string" && groups[rawStore.activeGroupId]
+      ? rawStore.activeGroupId
+      : Object.keys(groups)[0];
+
+  return {
+    version: Number.isFinite(incomingVersion) ? incomingVersion : STORE_VERSION,
+    groups,
+    activeGroupId,
+  };
+}
+
+function loadStore() {
+  const raw = window.localStorage.getItem(STORAGE_KEY);
+  if (!raw) {
+    store = getDefaultStore();
+    return { warningMessage: "" };
+  }
+
+  try {
+    const parsed = JSON.parse(raw);
+    store = migrateStore(parsed);
+    store.version = STORE_VERSION;
+    saveStore();
+    return { warningMessage: "" };
+  } catch {
+    store = getDefaultStore();
+    saveStore();
+    return {
+      warningMessage:
+        "Saved data was corrupted and has been reset to a clean default.",
+    };
+  }
+}
+
+function saveStore() {
+  const persisted = {
+    version: STORE_VERSION,
+    groups: store.groups,
+    activeGroupId: store.activeGroupId,
+  };
+  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(persisted));
+}
+
+function getActiveGroupParticipants() {
+  const activeGroup = store.groups[store.activeGroupId];
+  return Array.isArray(activeGroup?.participants) ? activeGroup.participants : [];
+}
+
+function setActiveGroupParticipants(participants) {
+  if (!store.groups[store.activeGroupId]) {
+    store.groups[store.activeGroupId] = {
+      id: store.activeGroupId,
+      name: "Group",
+      participants: [],
+    };
+  }
+
+  store.groups[store.activeGroupId].participants = [...participants];
+}
 
 function showScreen(screenName) {
   ui.screens.setup.classList.toggle("hidden", screenName !== "setup");
