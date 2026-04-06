@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Reusable starter template for browser-based tools." />
+    <title>Your Tool Name | Template</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <main class="page">
+      <section class="tool-card" aria-labelledby="tool-title">
+        <header class="tool-header">
+          <h1 id="tool-title">Tool Title</h1>
+          <p class="tool-subtitle">A minimal starter for browser-based utilities.</p>
+        </header>
+
+        <form id="tool-form" class="tool-form" novalidate>
+          <section class="panel input-panel" aria-label="Input section">
+            <h2>Input</h2>
+
+            <div class="field">
+              <label for="main-input">Main Input</label>
+              <input
+                id="main-input"
+                name="mainInput"
+                type="text"
+                placeholder="Type something..."
+                autocomplete="off"
+              />
+            </div>
+
+            <div class="field">
+              <label for="option-input">Optional Setting</label>
+              <input
+                id="option-input"
+                name="optionInput"
+                type="text"
+                placeholder="Optional value"
+                autocomplete="off"
+              />
+            </div>
+          </section>
+
+          <section class="panel output-panel" aria-label="Output section">
+            <h2>Output</h2>
+            <label for="result-output">Result</label>
+            <output id="result-output" for="main-input option-input">Result will appear here.</output>
+          </section>
+
+          <section class="actions" aria-label="Action buttons">
+            <button type="button" id="calculate-btn" class="btn btn-primary">Calculate</button>
+            <button type="button" id="copy-btn" class="btn btn-secondary">Copy Result</button>
+            <button type="button" id="reset-btn" class="btn btn-secondary">Reset</button>
+          </section>
+        </form>
+      </section>
+    </main>
+
+    <script src="app.js" defer></script>
+  </body>
+</html>
