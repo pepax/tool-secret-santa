@@ -29,6 +29,7 @@ const ui = {
   setupMessage: document.getElementById("setup-message"),
   startBtn: document.getElementById("start-btn"),
   turnIndicator: document.getElementById("turn-indicator"),
+  passText: document.getElementById("pass-text"),
   readyStep: document.getElementById("ready-step"),
   confirmStep: document.getElementById("confirm-step"),
   resultStep: document.getElementById("result-step"),
@@ -209,11 +210,15 @@ function renderReveal() {
   const turn = state.currentIndex + 1;
   const total = state.participants.length;
   const currentParticipant = state.participants[state.currentIndex];
+  const isRevealed = state.revealState === "revealed";
+  const hasNextParticipant = state.currentIndex < total - 1;
   ui.turnIndicator.textContent = `It's ${currentParticipant}'s turn (${turn} of ${total})`;
 
   ui.readyStep.classList.toggle("hidden", state.revealState !== "ready");
   ui.confirmStep.classList.toggle("hidden", state.revealState !== "confirm");
-  ui.resultStep.classList.toggle("hidden", state.revealState !== "revealed");
+  ui.resultStep.classList.toggle("hidden", !isRevealed);
+  ui.passText.classList.toggle("hidden", isRevealed);
+  ui.nextBtn.textContent = hasNextParticipant ? "Hide and pass to next person" : "Finish";
 }
 
 function revealAssignment() {
