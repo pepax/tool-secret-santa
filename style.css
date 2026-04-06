@@ -187,6 +187,16 @@ h1 {
   grid-template-columns: 1fr 1fr;
 }
 
+.finished-actions {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: 1fr 1fr;
+}
+
+.finished-actions .btn:first-child {
+  grid-column: 1 / -1;
+}
+
 .btn {
   border: 1px solid transparent;
   border-radius: 12px;
@@ -242,6 +252,10 @@ h1 {
 
 @media (max-width: 420px) {
   .split {
+    grid-template-columns: 1fr;
+  }
+
+  .finished-actions {
     grid-template-columns: 1fr;
   }
 }
