@@ -208,7 +208,8 @@ function renderReveal() {
 
   const turn = state.currentIndex + 1;
   const total = state.participants.length;
-  ui.turnIndicator.textContent = `Person ${turn} of ${total}`;
+  const currentParticipant = state.participants[state.currentIndex];
+  ui.turnIndicator.textContent = `It's ${currentParticipant}'s turn (${turn} of ${total})`;
 
   ui.readyStep.classList.toggle("hidden", state.revealState !== "ready");
   ui.confirmStep.classList.toggle("hidden", state.revealState !== "confirm");
