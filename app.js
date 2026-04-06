@@ -38,6 +38,8 @@ const ui = {
   cancelRevealBtn: document.getElementById("cancel-reveal-btn"),
   assignedName: document.getElementById("assigned-name"),
   nextBtn: document.getElementById("next-btn"),
+  runAgainBtn: document.getElementById("run-again-btn"),
+  editParticipantsBtn: document.getElementById("edit-participants-btn"),
   resetBtn: document.getElementById("reset-btn"),
 };
 
@@ -73,6 +75,8 @@ function bindEvents() {
 
   ui.confirmRevealBtn.addEventListener("click", revealAssignment);
   ui.nextBtn.addEventListener("click", hideAndAdvance);
+  ui.runAgainBtn.addEventListener("click", runAgainWithSameParticipants);
+  ui.editParticipantsBtn.addEventListener("click", editParticipants);
   ui.resetBtn.addEventListener("click", resetAll);
 }
 
@@ -185,17 +189,14 @@ function startSecretSanta() {
     return;
   }
 
+  resetRunState();
+
   try {
     state.assignments = buildDerangement(state.participants);
   } catch {
     setSetupMessage("Could not generate assignments. Please try again.", true);
     return;
   }
-
-  state.revealed = new Set();
-  state.currentIndex = 0;
-  state.revealState = "ready";
-  ui.assignedName.textContent = "";
 
   renderReveal();
   showScreen("reveal");
@@ -257,15 +258,33 @@ function hideAndAdvance() {
 
 /* ------------------------------- Reset -------------------------------- */
 
-function resetAll() {
-  state.participants = [];
+function resetRunState() {
   state.assignments = new Map();
   state.revealed = new Set();
   state.currentIndex = 0;
   state.revealState = "ready";
+  ui.assignedName.textContent = "";
+  ui.turnIndicator.textContent = "";
+  ui.passText.classList.remove("hidden");
+}
+
+function runAgainWithSameParticipants() {
+  resetRunState();
+  startSecretSanta();
+}
+
+function editParticipants() {
+  resetRunState();
+  setSetupMessage("");
+  renderSetup();
+  showScreen("setup");
+}
+
+function resetAll() {
+  state.participants = [];
+  resetRunState();
 
   ui.nameInput.value = "";
-  ui.assignedName.textContent = "";
   setSetupMessage("");
   renderSetup();
   showScreen("setup");
