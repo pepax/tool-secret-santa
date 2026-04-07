@@ -331,17 +331,26 @@ function resetAll() {
     0,
   );
 
+  const consequenceMessage = `This permanently deletes ${totalGroups} group${totalGroups === 1 ? "" : "s"} and ${totalParticipants} participant${totalParticipants === 1 ? "" : "s"}.`;
   const confirmed = window.confirm(
-    `Delete all groups and participants?\n\nThis permanently removes ${totalGroups} group${totalGroups === 1 ? "" : "s"} and ${totalParticipants} participant${totalParticipants === 1 ? "" : "s"}.`,
+    `Delete all groups and participants?\n\n${consequenceMessage}`,
   );
   if (!confirmed) return;
+
+  if (totalParticipants > 0) {
+    const token = window.prompt(
+      `High-impact action.\n\n${consequenceMessage}\n\nType DELETE to confirm.`,
+      "",
+    );
+    if (token?.trim() !== "DELETE") return;
+  }
 
   store = getDefaultStore();
   saveStore();
   resetRunState();
 
   ui.nameInput.value = "";
-  setSetupMessage("");
+  setSetupMessage("All data cleared.");
   renderSetup();
   showScreen("setup");
 }
