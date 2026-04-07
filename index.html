@@ -95,17 +95,21 @@
 
         <div class="card">
           <p class="finished-text">Keep the assignments secret and have fun!</p>
-          <div class="finished-actions">
+          <div class="finished-actions" aria-label="Finished actions">
             <button id="run-again-btn" class="btn btn-accent btn-block" type="button">
               Run again with same participants
             </button>
             <button id="edit-participants-btn" class="btn btn-primary btn-block" type="button">
               Edit participants
             </button>
-            <button id="reset-btn" class="btn btn-ghost btn-block" type="button">
-              Clear everything
-            </button>
           </div>
+
+          <section class="danger-zone" aria-labelledby="danger-zone-title">
+            <h2 id="danger-zone-title" class="danger-zone-title">Danger zone</h2>
+            <button id="reset-btn" class="btn btn-danger btn-block" type="button">
+              Delete all groups &amp; participants
+            </button>
+          </section>
         </div>
       </section>
     </main>

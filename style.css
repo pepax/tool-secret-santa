@@ -196,11 +196,23 @@ h1 {
 .finished-actions {
   display: grid;
   gap: 8px;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr;
 }
 
-.finished-actions .btn:first-child {
-  grid-column: 1 / -1;
+.danger-zone {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+  display: grid;
+  gap: 10px;
+}
+
+.danger-zone-title {
+  margin: 0;
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--danger);
 }
 
 .btn {
@@ -256,14 +268,23 @@ h1 {
   color: var(--primary-hover);
 }
 
+.btn-danger {
+  background: color-mix(in srgb, var(--danger) 18%, transparent 82%);
+  border-color: color-mix(in srgb, var(--danger) 60%, #000 40%);
+  color: color-mix(in srgb, var(--danger) 80%, #fff 20%);
+}
+
+.btn-danger:hover {
+  background: color-mix(in srgb, var(--danger) 24%, transparent 76%);
+  border-color: var(--danger);
+  color: #ffdce2;
+}
+
 @media (max-width: 420px) {
   .split {
     grid-template-columns: 1fr;
   }
 
-  .finished-actions {
-    grid-template-columns: 1fr;
-  }
 }
 
 @keyframes fade-in {
