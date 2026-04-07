@@ -1,15 +1,7 @@
 "use strict";
 
-/**
- * Secret Santa app (in-memory only)
- * - participants: string[]
- * - assignments: Map<giver, receiver>
- * - revealed: Set<giver>
- * - currentIndex: number
- * - revealState: "ready" | "confirm" | "revealed"
- */
 const state = {
-  participants: [],
+  runParticipants: [],
   assignments: new Map(),
   revealed: new Set(),
   currentIndex: 0,
@@ -29,6 +21,10 @@ const ui = {
     finished: document.getElementById("finished-screen"),
   },
   form: document.getElementById("add-form"),
+  groupSelect: document.getElementById("group-select"),
+  newGroupBtn: document.getElementById("new-group-btn"),
+  renameGroupBtn: document.getElementById("rename-group-btn"),
+  deleteGroupBtn: document.getElementById("delete-group-btn"),
   nameInput: document.getElementById("name-input"),
   addBtn: document.getElementById("add-btn"),
   list: document.getElementById("participant-list"),
@@ -51,7 +47,6 @@ const ui = {
 
 function init() {
   const loadResult = loadStore();
-  state.participants = [...getActiveGroupParticipants()];
   bindEvents();
   renderSetup();
   showScreen("setup");
@@ -74,6 +69,12 @@ function bindEvents() {
   });
 
   ui.startBtn.addEventListener("click", startSecretSanta);
+  ui.groupSelect.addEventListener("change", (event) => {
+    setActiveGroup(event.target.value);
+  });
+  ui.newGroupBtn.addEventListener("click", createNewGroup);
+  ui.renameGroupBtn.addEventListener("click", renameActiveGroup);
+  ui.deleteGroupBtn.addEventListener("click", deleteActiveGroup);
 
   ui.revealBtn.addEventListener("click", () => {
     state.revealState = "confirm";
@@ -95,6 +96,7 @@ function bindEvents() {
 /* ----------------------------- Setup Phase ----------------------------- */
 
 function addParticipant(rawName) {
+  const participants = getActiveGroupParticipants();
   const name = normalizeName(rawName);
 
   if (!name) {
@@ -102,13 +104,12 @@ function addParticipant(rawName) {
     return;
   }
 
-  if (hasDuplicateName(name)) {
+  if (hasDuplicateName(name, participants)) {
     setSetupMessage("That name is already in the list.", true);
     return;
   }
 
-  state.participants.push(name);
-  setActiveGroupParticipants(state.participants);
+  setActiveGroupParticipants([...participants, name]);
   saveStore();
   ui.nameInput.value = "";
   setSetupMessage("Name added.");
@@ -117,17 +118,21 @@ function addParticipant(rawName) {
 }
 
 function removeParticipant(name) {
-  state.participants = state.participants.filter((n) => n !== name);
-  setActiveGroupParticipants(state.participants);
+  const participants = getActiveGroupParticipants().filter((n) => n !== name);
+  setActiveGroupParticipants(participants);
   saveStore();
   setSetupMessage("Name removed.");
   renderSetup();
 }
 
 function renderSetup() {
+  const activeGroup = getActiveGroup();
+  const participants = activeGroup.participants;
+
+  renderGroupControls();
   ui.list.innerHTML = "";
 
-  if (state.participants.length === 0) {
+  if (participants.length === 0) {
     const empty = document.createElement("li");
     empty.className = "participant-item";
     empty.innerHTML = `<span class="participant-name">No participants yet.</span>`;
@@ -135,7 +140,7 @@ function renderSetup() {
   } else {
     const fragment = document.createDocumentFragment();
 
-    state.participants.forEach((name) => {
+    participants.forEach((name) => {
       const item = document.createElement("li");
       item.className = "participant-item";
       item.innerHTML = `
@@ -150,7 +155,11 @@ function renderSetup() {
     ui.list.appendChild(fragment);
   }
 
-  ui.startBtn.disabled = state.participants.length < 2;
+  ui.startBtn.disabled = participants.length < 2;
+  ui.startBtn.title =
+    participants.length < 2
+      ? `Add at least 2 participants to "${activeGroup.name}" to start.`
+      : "";
 }
 
 /* -------------------------- Assignment Logic --------------------------- */
@@ -200,15 +209,18 @@ function isValidAssignment(names, assignments) {
 /* ---------------------------- Reveal Phase ----------------------------- */
 
 function startSecretSanta() {
-  if (state.participants.length < 2) {
+  const participants = getActiveGroupParticipants();
+
+  if (participants.length < 2) {
     setSetupMessage("Add at least 2 participants to start.", true);
     return;
   }
 
   resetRunState();
+  state.runParticipants = [...participants];
 
   try {
-    state.assignments = buildDerangement(state.participants);
+    state.assignments = buildDerangement(state.runParticipants);
   } catch {
     setSetupMessage("Could not generate assignments. Please try again.", true);
     return;
@@ -219,14 +231,14 @@ function startSecretSanta() {
 }
 
 function renderReveal() {
-  if (state.currentIndex >= state.participants.length) {
+  if (state.currentIndex >= state.runParticipants.length) {
     showScreen("finished");
     return;
   }
 
   const turn = state.currentIndex + 1;
-  const total = state.participants.length;
-  const currentParticipant = state.participants[state.currentIndex];
+  const total = state.runParticipants.length;
+  const currentParticipant = state.runParticipants[state.currentIndex];
   const isRevealed = state.revealState === "revealed";
   const hasNextParticipant = state.currentIndex < total - 1;
   ui.turnIndicator.textContent = `It's ${currentParticipant}'s turn (${turn} of ${total})`;
@@ -239,7 +251,7 @@ function renderReveal() {
 }
 
 function revealAssignment() {
-  const giver = state.participants[state.currentIndex];
+  const giver = state.runParticipants[state.currentIndex];
   if (!giver || state.revealed.has(giver)) return;
 
   state.revealState = "revealed";
@@ -256,7 +268,7 @@ function revealAssignment() {
 }
 
 function hideAndAdvance() {
-  const giver = state.participants[state.currentIndex];
+  const giver = state.runParticipants[state.currentIndex];
   if (!giver) return;
 
   state.revealed.add(giver);
@@ -264,7 +276,7 @@ function hideAndAdvance() {
   state.currentIndex += 1;
   state.revealState = "ready";
 
-  if (state.currentIndex >= state.participants.length) {
+  if (state.currentIndex >= state.runParticipants.length) {
     showScreen("finished");
     return;
   }
@@ -285,8 +297,23 @@ function resetRunState() {
 }
 
 function runAgainWithSameParticipants() {
+  if (state.runParticipants.length < 2) {
+    editParticipants();
+    return;
+  }
+
   resetRunState();
-  startSecretSanta();
+
+  try {
+    state.assignments = buildDerangement(state.runParticipants);
+  } catch {
+    setSetupMessage("Could not generate assignments. Please try again.", true);
+    showScreen("setup");
+    return;
+  }
+
+  renderReveal();
+  showScreen("reveal");
 }
 
 function editParticipants() {
@@ -297,8 +324,7 @@ function editParticipants() {
 }
 
 function resetAll() {
-  state.participants = [];
-  setActiveGroupParticipants(state.participants);
+  store = getDefaultStore();
   saveStore();
   resetRunState();
 
@@ -313,13 +339,10 @@ function resetAll() {
 function getDefaultStore() {
   return {
     version: STORE_VERSION,
-    groups: {
-      [DEFAULT_GROUP_ID]: {
-        id: DEFAULT_GROUP_ID,
-        name: "Default Group",
-        participants: [],
-      },
+    groupsById: {
+      [DEFAULT_GROUP_ID]: { id: DEFAULT_GROUP_ID, name: "Default Group", participants: [] },
     },
+    groupOrder: [DEFAULT_GROUP_ID],
     activeGroupId: DEFAULT_GROUP_ID,
   };
 }
@@ -332,11 +355,16 @@ function migrateStore(rawStore) {
   }
 
   const incomingVersion = Number(rawStore.version);
-  const rawGroups = rawStore.groups;
-  const groups = {};
+  const rawGroupsById =
+    rawStore.groupsById && typeof rawStore.groupsById === "object" && !Array.isArray(rawStore.groupsById)
+      ? rawStore.groupsById
+      : rawStore.groups && typeof rawStore.groups === "object" && !Array.isArray(rawStore.groups)
+        ? rawStore.groups
+        : null;
+  const groupsById = {};
 
-  if (rawGroups && typeof rawGroups === "object" && !Array.isArray(rawGroups)) {
-    Object.entries(rawGroups).forEach(([groupId, groupData]) => {
+  if (rawGroupsById) {
+    Object.entries(rawGroupsById).forEach(([groupId, groupData]) => {
       if (!groupData || typeof groupData !== "object") return;
 
       const participants = Array.isArray(groupData.participants)
@@ -345,38 +373,49 @@ function migrateStore(rawStore) {
             .filter(Boolean)
         : [];
 
-      groups[groupId] = {
+      groupsById[groupId] = {
         id: typeof groupData.id === "string" && groupData.id ? groupData.id : groupId,
-        name:
-          typeof groupData.name === "string" && groupData.name
-            ? groupData.name
-            : "Group",
+        name: typeof groupData.name === "string" && groupData.name ? groupData.name : "Group",
         participants,
       };
     });
   }
 
-  if (Object.keys(groups).length === 0 && Array.isArray(rawStore.participants)) {
-    groups[DEFAULT_GROUP_ID] = {
-      ...fallbackStore.groups[DEFAULT_GROUP_ID],
+  if (Object.keys(groupsById).length === 0 && Array.isArray(rawStore.participants)) {
+    groupsById[DEFAULT_GROUP_ID] = {
+      ...fallbackStore.groupsById[DEFAULT_GROUP_ID],
       participants: rawStore.participants
         .map((value) => (typeof value === "string" ? normalizeName(value) : ""))
         .filter(Boolean),
     };
   }
 
-  if (Object.keys(groups).length === 0) {
-    groups[DEFAULT_GROUP_ID] = { ...fallbackStore.groups[DEFAULT_GROUP_ID] };
+  if (Object.keys(groupsById).length === 0) {
+    groupsById[DEFAULT_GROUP_ID] = { ...fallbackStore.groupsById[DEFAULT_GROUP_ID] };
   }
 
+  const validIds = new Set(Object.keys(groupsById));
+  const groupOrderSource = Array.isArray(rawStore.groupOrder) ? rawStore.groupOrder : [];
+  const groupOrder = groupOrderSource.filter(
+    (groupId, index) =>
+      typeof groupId === "string" && validIds.has(groupId) && groupOrderSource.indexOf(groupId) === index,
+  );
+
+  Object.keys(groupsById).forEach((groupId) => {
+    if (!groupOrder.includes(groupId)) {
+      groupOrder.push(groupId);
+    }
+  });
+
   const activeGroupId =
-    typeof rawStore.activeGroupId === "string" && groups[rawStore.activeGroupId]
+    typeof rawStore.activeGroupId === "string" && groupsById[rawStore.activeGroupId]
       ? rawStore.activeGroupId
-      : Object.keys(groups)[0];
+      : groupOrder[0];
 
   return {
     version: Number.isFinite(incomingVersion) ? incomingVersion : STORE_VERSION,
-    groups,
+    groupsById,
+    groupOrder,
     activeGroupId,
   };
 }
@@ -407,27 +446,119 @@ function loadStore() {
 function saveStore() {
   const persisted = {
     version: STORE_VERSION,
-    groups: store.groups,
+    groupsById: store.groupsById,
+    groupOrder: store.groupOrder,
     activeGroupId: store.activeGroupId,
   };
   window.localStorage.setItem(STORAGE_KEY, JSON.stringify(persisted));
 }
 
-function getActiveGroupParticipants() {
-  const activeGroup = store.groups[store.activeGroupId];
-  return Array.isArray(activeGroup?.participants) ? activeGroup.participants : [];
-}
+function getActiveGroup() {
+  if (!store.groupsById[store.activeGroupId]) {
+    const fallbackId = store.groupOrder[0];
+    store.activeGroupId = fallbackId || DEFAULT_GROUP_ID;
+  }
 
-function setActiveGroupParticipants(participants) {
-  if (!store.groups[store.activeGroupId]) {
-    store.groups[store.activeGroupId] = {
+  if (!store.groupsById[store.activeGroupId]) {
+    store.groupsById[store.activeGroupId] = {
       id: store.activeGroupId,
       name: "Group",
       participants: [],
     };
+    if (!store.groupOrder.includes(store.activeGroupId)) {
+      store.groupOrder.push(store.activeGroupId);
+    }
   }
 
-  store.groups[store.activeGroupId].participants = [...participants];
+  return store.groupsById[store.activeGroupId];
+}
+
+function getActiveGroupParticipants() {
+  const activeGroup = getActiveGroup();
+  return Array.isArray(activeGroup.participants) ? [...activeGroup.participants] : [];
+}
+
+function setActiveGroupParticipants(participants) {
+  const activeGroup = getActiveGroup();
+  activeGroup.participants = [...participants];
+}
+
+function setActiveGroup(groupId) {
+  if (!store.groupsById[groupId]) return;
+  store.activeGroupId = groupId;
+  saveStore();
+  setSetupMessage("");
+  renderSetup();
+}
+
+function renderGroupControls() {
+  ui.groupSelect.innerHTML = "";
+
+  const fragment = document.createDocumentFragment();
+  store.groupOrder.forEach((groupId) => {
+    const group = store.groupsById[groupId];
+    if (!group) return;
+
+    const option = document.createElement("option");
+    option.value = group.id;
+    option.textContent = group.name;
+    fragment.appendChild(option);
+  });
+
+  ui.groupSelect.appendChild(fragment);
+  ui.groupSelect.value = store.activeGroupId;
+  ui.deleteGroupBtn.disabled = store.groupOrder.length <= 1;
+}
+
+function createNewGroup() {
+  const rawName = window.prompt("Name for the new group:");
+  const name = rawName ? rawName.trim() : "";
+  if (!name) return;
+
+  const id = `group-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+  store.groupsById[id] = { id, name, participants: [] };
+  store.groupOrder.push(id);
+  store.activeGroupId = id;
+  saveStore();
+  setSetupMessage(`Created group "${name}".`);
+  renderSetup();
+  ui.nameInput.focus();
+}
+
+function renameActiveGroup() {
+  const activeGroup = getActiveGroup();
+  const rawName = window.prompt("Rename group:", activeGroup.name);
+  const name = rawName ? rawName.trim() : "";
+  if (!name) return;
+
+  activeGroup.name = name;
+  saveStore();
+  setSetupMessage(`Renamed group to "${name}".`);
+  renderSetup();
+}
+
+function deleteActiveGroup() {
+  const activeGroup = getActiveGroup();
+  const hasParticipants = activeGroup.participants.length > 0;
+
+  if (hasParticipants) {
+    const confirmed = window.confirm(
+      `Delete "${activeGroup.name}" and its ${activeGroup.participants.length} participant(s)?`,
+    );
+    if (!confirmed) return;
+  }
+
+  if (store.groupOrder.length <= 1) {
+    setSetupMessage("You must keep at least one group.", true);
+    return;
+  }
+
+  delete store.groupsById[activeGroup.id];
+  store.groupOrder = store.groupOrder.filter((groupId) => groupId !== activeGroup.id);
+  store.activeGroupId = store.groupOrder[0];
+  saveStore();
+  setSetupMessage(`Deleted group "${activeGroup.name}".`);
+  renderSetup();
 }
 
 function showScreen(screenName) {
@@ -445,9 +576,9 @@ function normalizeName(value) {
   return value.trim().replace(/\s+/g, " ");
 }
 
-function hasDuplicateName(name) {
+function hasDuplicateName(name, participants) {
   const lowered = name.toLocaleLowerCase();
-  return state.participants.some((existing) => existing.toLocaleLowerCase() === lowered);
+  return participants.some((existing) => existing.toLocaleLowerCase() === lowered);
 }
 
 function escapeHtml(value) {
