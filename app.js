@@ -324,6 +324,18 @@ function editParticipants() {
 }
 
 function resetAll() {
+  const groups = Object.values(store.groupsById || {});
+  const totalGroups = groups.length;
+  const totalParticipants = groups.reduce(
+    (sum, group) => sum + (Array.isArray(group.participants) ? group.participants.length : 0),
+    0,
+  );
+
+  const confirmed = window.confirm(
+    `This will delete all groups and participants.\n\nThis permanently removes ${totalGroups} group${totalGroups === 1 ? "" : "s"} and ${totalParticipants} participant${totalParticipants === 1 ? "" : "s"}.`,
+  );
+  if (!confirmed) return;
+
   store = getDefaultStore();
   saveStore();
   resetRunState();
