@@ -89,6 +89,21 @@ h1 {
   margin-bottom: 14px;
 }
 
+.more-menu {
+  margin-top: 2px;
+}
+
+.more-trigger {
+  color: var(--muted);
+  font-size: 0.9rem;
+  cursor: pointer;
+  width: fit-content;
+}
+
+.more-menu[open] .more-trigger {
+  color: var(--text);
+}
+
 .label {
   color: var(--muted);
   font-size: 0.92rem;
@@ -199,22 +214,6 @@ h1 {
   grid-template-columns: 1fr;
 }
 
-.danger-zone {
-  margin-top: 16px;
-  padding-top: 12px;
-  border-top: 1px solid var(--border);
-  display: grid;
-  gap: 10px;
-}
-
-.danger-zone-title {
-  margin: 0;
-  font-size: 0.9rem;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--danger);
-}
-
 .btn {
   border: 1px solid transparent;
   border-radius: 12px;
@@ -278,6 +277,20 @@ h1 {
   background: color-mix(in srgb, var(--danger) 24%, transparent 76%);
   border-color: var(--danger);
   color: #ffdce2;
+}
+
+.btn-linklike {
+  background: transparent;
+  border: 0;
+  color: var(--danger);
+  font-weight: 600;
+  min-height: auto;
+  padding: 6px 0 0;
+}
+
+.btn-linklike:hover {
+  color: #ffdce2;
+  text-decoration: underline;
 }
 
 @media (max-width: 420px) {
