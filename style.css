@@ -83,6 +83,12 @@ h1 {
   gap: 8px;
 }
 
+.group-section {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
 .label {
   color: var(--muted);
   font-size: 0.92rem;

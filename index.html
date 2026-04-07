@@ -16,6 +16,18 @@
         </header>
 
         <div class="card">
+          <section class="group-section" aria-labelledby="group-title">
+            <h2 id="group-title" class="list-title">Group</h2>
+            <div class="row">
+              <select id="group-select" class="input" aria-label="Active group"></select>
+              <button id="new-group-btn" class="btn btn-primary" type="button">New group</button>
+            </div>
+            <div class="split">
+              <button id="rename-group-btn" class="btn btn-ghost" type="button">Rename</button>
+              <button id="delete-group-btn" class="btn btn-ghost" type="button">Delete</button>
+            </div>
+          </section>
+
           <form id="add-form" class="name-form" autocomplete="off">
             <label for="name-input" class="label">Participant name</label>
             <div class="row">
