@@ -560,19 +560,19 @@ function renameActiveGroup() {
 
 function deleteActiveGroup() {
   const activeGroup = getActiveGroup();
-  const hasParticipants = activeGroup.participants.length > 0;
-
-  if (hasParticipants) {
-    const confirmed = window.confirm(
-      `Delete "${activeGroup.name}" and its ${activeGroup.participants.length} participant(s)?`,
-    );
-    if (!confirmed) return;
-  }
 
   if (store.groupOrder.length <= 1) {
     setSetupMessage("You must keep at least one group.", true);
     return;
   }
+
+  const participantCount = activeGroup.participants.length;
+  const confirmed = window.confirm(
+    participantCount > 0
+      ? `Delete "${activeGroup.name}" and its ${participantCount} participant(s)?`
+      : `Delete "${activeGroup.name}"?`,
+  );
+  if (!confirmed) return;
 
   delete store.groupsById[activeGroup.id];
   store.groupOrder = store.groupOrder.filter((groupId) => groupId !== activeGroup.id);
