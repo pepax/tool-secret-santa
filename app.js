@@ -332,7 +332,7 @@ function resetAll() {
   );
 
   const confirmed = window.confirm(
-    `This will delete all groups and participants.\n\nThis permanently removes ${totalGroups} group${totalGroups === 1 ? "" : "s"} and ${totalParticipants} participant${totalParticipants === 1 ? "" : "s"}.`,
+    `Delete all groups and participants?\n\nThis permanently removes ${totalGroups} group${totalGroups === 1 ? "" : "s"} and ${totalParticipants} participant${totalParticipants === 1 ? "" : "s"}.`,
   );
   if (!confirmed) return;
 
